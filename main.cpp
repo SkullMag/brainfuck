@@ -47,6 +47,7 @@ static llvm::AllocaInst *arrA;
 
 // std runtime functions
 static llvm::FunctionCallee putcharCallee;
+static llvm::FunctionCallee getcharCallee;
 
 
 static llvm::Function *initRuntime() {
@@ -60,6 +61,7 @@ static llvm::Function *initRuntime() {
 
   // declare stdlib functions
   putcharCallee = Module->getOrInsertFunction("putchar", llvm::Type::getInt32Ty(*Context), llvm::Type::getInt8Ty(*Context));
+  getcharCallee = Module->getOrInsertFunction("getchar", llvm::Type::getInt8Ty(*Context));
 
   // Create a basic block for insertion
   llvm::BasicBlock *BB = llvm::BasicBlock::Create(*Context, "entry", F);
@@ -142,6 +144,13 @@ static void printByte() {
   Builder->CreateCall(putcharCallee, byte);
 }
 
+static void getByte() {
+  llvm::CallInst *inst = Builder->CreateCall(getcharCallee);
+  llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
+  llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
+  Builder->CreateStore(inst, gep);
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cout << "Specify a filename to compile" << std::endl;
@@ -170,6 +179,9 @@ int main(int argc, char *argv[]) {
       break;
     case '.':
       printByte();
+      break;
+    case ',':
+      getByte();
       break;
     default:
       break;
