@@ -26,7 +26,7 @@ static llvm::AllocaInst *ptrA;
 static llvm::AllocaInst *arrA;
 
 // std runtime functions
-static llvm::Function *printfFunc;
+static llvm::FunctionCallee putcharCallee;
 
 
 static llvm::Function *initRuntime() {
@@ -37,6 +37,9 @@ static llvm::Function *initRuntime() {
   // Define types
   ptrTy = llvm::Type::getInt8Ty(*Context);
   arrTy = llvm::ArrayType::get(ptrTy, 100);
+
+  // declare stdlib functions
+  putcharCallee = Module->getOrInsertFunction("putchar", llvm::Type::getInt32Ty(*Context), llvm::Type::getInt8Ty(*Context));
 
   // Create a basic block for insertion
   llvm::BasicBlock *BB = llvm::BasicBlock::Create(*Context, "entry", F);
@@ -90,6 +93,13 @@ static void decByte() {
   Builder->CreateStore(add, gep);
 }
 
+static void printByte() {
+  llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
+  llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
+  llvm::LoadInst *byte = Builder->CreateLoad(ptrTy, gep);
+  Builder->CreateCall(putcharCallee, byte);
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cout << "Specify a filename to compile" << std::endl;
@@ -116,17 +126,18 @@ int main(int argc, char *argv[]) {
     case '-':
       decByte();
       break;
+    case '.':
+      printByte();
+      break;
     default:
       break;
     }
   }
 
-  // Return void
   Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context), 0));
-
   llvm::verifyFunction(*F);
   llvm::verifyModule(*Module);
-  F->print(llvm::errs());
+  Module->print(llvm::errs(), nullptr);
 
   return 0;
 }
