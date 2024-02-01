@@ -21,8 +21,7 @@ int main() {
   Module = std::make_unique<llvm::Module>("brainfuck", *Context); 
 
   // Create main function
-  std::vector<llvm::Type *> argtypes(0, llvm::Type::getDoubleTy(*Context));
-  llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(*Context), argtypes, false);
+  llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(*Context), {}, false);
   llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, "main", *Module);
 
   // Define types
