@@ -109,32 +109,22 @@ static void initLLVM() {
   PB.crossRegisterProxies(*TheLAM, *TheFAM, *TheCGAM, *TheMAM);
 }
 
-static void incPtr() {
+// >, < ops
+static void addPtr(int val) {
   llvm::LoadInst *tmp = Builder->CreateLoad(ptrA->getAllocatedType(), ptrA);
-  llvm::Value *inc = Builder->CreateAdd(tmp, llvm::ConstantInt::get(ptrTy, 1));
+  llvm::Value *inc = Builder->CreateAdd(tmp, llvm::ConstantInt::get(ptrTy, val));
   Builder->CreateStore(inc, ptrA);
 }
 
-static void decPtr() {
-  llvm::LoadInst *tmp = Builder->CreateLoad(ptrA->getAllocatedType(), ptrA);
-  llvm::Value *inc = Builder->CreateSub(tmp, llvm::ConstantInt::get(ptrTy, 1));
-  Builder->CreateStore(inc, ptrA);
-}
-
-static void incByte() {
+// +, - ops
+static void addByte(int val) {
   llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
   llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
-  llvm::Value *add = Builder->CreateAdd(Builder->CreateLoad(ptrTy, gep), llvm::ConstantInt::get(ptrTy, 1));
+  llvm::Value *add = Builder->CreateAdd(Builder->CreateLoad(ptrTy, gep), llvm::ConstantInt::get(ptrTy, val));
   Builder->CreateStore(add, gep);
 }
 
-static void decByte() {
-  llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
-  llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
-  llvm::Value *add = Builder->CreateSub(Builder->CreateLoad(ptrTy, gep), llvm::ConstantInt::get(ptrTy, 1));
-  Builder->CreateStore(add, gep);
-}
-
+// . op
 static void printByte() {
   llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
   llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
@@ -142,6 +132,7 @@ static void printByte() {
   Builder->CreateCall(putcharCallee, byte);
 }
 
+// , op
 static void getByte() {
   llvm::CallInst *inst = Builder->CreateCall(getcharCallee);
   llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
@@ -162,6 +153,7 @@ public:
   llvm::BasicBlock *getEnd() { return End; }
 };
 
+// [ op
 static std::unique_ptr<WhileExprAST> whileStart(llvm::Function *F) {
   static size_t idx = 0;
   std::string strIdx = std::to_string(idx++);
@@ -184,6 +176,7 @@ static std::unique_ptr<WhileExprAST> whileStart(llvm::Function *F) {
   return std::make_unique<WhileExprAST>(condition, body, end);
 }
 
+// ] op
 static void whileEnd(std::unique_ptr<WhileExprAST> ast) {
   Builder->CreateBr(ast->getCondition());
   Builder->SetInsertPoint(ast->getEnd());
@@ -206,16 +199,16 @@ int main(int argc, char *argv[]) {
     switch (c)
     {
     case '>':
-      incPtr();
+      addPtr(1);
       break;
     case '<':
-      decPtr();
+      addPtr(-1);
       break;
     case '+':
-      incByte();
+      addByte(1);
       break;
     case '-':
-      decByte();
+      addByte(-1);
       break;
     case '.':
       printByte();
