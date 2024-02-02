@@ -57,7 +57,7 @@ static llvm::Function *initRuntime() {
 
   // Define types
   ptrTy = llvm::Type::getInt8Ty(*Context);
-  arrTy = llvm::ArrayType::get(ptrTy, 100);
+  arrTy = llvm::ArrayType::get(ptrTy, 30000);
 
   // declare stdlib functions
   putcharCallee = Module->getOrInsertFunction("putchar", llvm::Type::getInt32Ty(*Context), llvm::Type::getInt8Ty(*Context));
@@ -151,6 +151,46 @@ static void getByte() {
   Builder->CreateStore(inst, gep);
 }
 
+class WhileExprAST {
+  llvm::BasicBlock *Condition;
+  llvm::BasicBlock *Body;
+  llvm::BasicBlock *End;
+
+public:
+  WhileExprAST(llvm::BasicBlock *cond, llvm::BasicBlock *body, llvm::BasicBlock *end)
+    : Condition(cond), Body(body), End(end) {};
+
+  llvm::BasicBlock *getCondition() { return Condition; }
+  llvm::BasicBlock *getEnd() { return End; }
+};
+
+static std::unique_ptr<WhileExprAST> whileStart(llvm::Function *F) {
+  static size_t idx = 0;
+  std::string strIdx = std::to_string(idx++);
+  llvm::BasicBlock *condition = llvm::BasicBlock::Create(*Context, std::string("while_start") + strIdx, F);
+  llvm::BasicBlock *body = llvm::BasicBlock::Create(*Context, std::string("while_body") + strIdx, F);
+  llvm::BasicBlock *end = llvm::BasicBlock::Create(*Context, std::string("while_end") + strIdx, F);
+  Builder->CreateBr(condition);
+
+  // Construct the condition block
+  Builder->SetInsertPoint(condition);
+
+  llvm::LoadInst *ptrValue = Builder->CreateLoad(ptrTy, ptrA);
+  llvm::Value *gep = Builder->CreateGEP(ptrTy, arrA, ptrValue);
+  llvm::LoadInst *byte = Builder->CreateLoad(ptrTy, gep);
+  llvm::Value *cmp = Builder->CreateICmpNE(byte, llvm::ConstantInt::get(ptrTy, 0));
+  Builder->CreateCondBr(cmp, body, end);
+
+  // Start constructing body
+  Builder->SetInsertPoint(body);
+  return std::make_unique<WhileExprAST>(condition, body, end);
+}
+
+static void whileEnd(std::unique_ptr<WhileExprAST> ast) {
+  Builder->CreateBr(ast->getCondition());
+  Builder->SetInsertPoint(ast->getEnd());
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cout << "Specify a filename to compile" << std::endl;
@@ -159,6 +199,8 @@ int main(int argc, char *argv[]) {
   initLLVM();
   llvm::Function *F = initRuntime();
   std::ifstream ifile(argv[1]);
+
+  std::stack<std::unique_ptr<WhileExprAST>> whileExprs;
 
   // Read file and build IR
   char c;
@@ -183,6 +225,12 @@ int main(int argc, char *argv[]) {
     case ',':
       getByte();
       break;
+    case '[':
+      whileExprs.push(whileStart(F));
+      break;
+    case ']':
+      whileEnd(std::move(whileExprs.top()));
+      whileExprs.pop();
     default:
       break;
     }

@@ -2,3 +2,5 @@
 .vscode
 *.ll
 *.s
+*.o
+*.bf
