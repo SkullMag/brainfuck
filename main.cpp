@@ -77,9 +77,6 @@ static llvm::Function *initRuntime() {
   llvm::Constant *arrC = llvm::ConstantAggregateZero::get(arrTy);
   Builder->CreateStore(arrC, arrA);
 
-  llvm::BasicBlock *StartBB = llvm::BasicBlock::Create(*Context, "start", F);
-  Builder->CreateBr(StartBB);
-  Builder->SetInsertPoint(StartBB);
   return F;
 }
 
@@ -102,6 +99,7 @@ static void initLLVM() {
   TheFPM->addPass(llvm::PromotePass());
   TheFPM->addPass(llvm::InstCombinePass());
   TheFPM->addPass(llvm::ReassociatePass());
+  TheFPM->addPass(llvm::GVNPass());
 
   // Register analysis passes used in these transform passes.
   llvm::PassBuilder PB;
